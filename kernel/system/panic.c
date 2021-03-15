@@ -19,7 +19,8 @@ char *comments_lol[] =
         "To boot or not to boot.",
         ":(",
         "Kernel is not in the sudoers file. This incident will be reported.",
-        "Error Code: INSERT_FUNNY_THING_HERE"
+        "Error Code: INSERT_FUNNY_THING_HERE",
+        "ERROR 4@r7: Kernel farted"
 
 };
 
