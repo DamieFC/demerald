@@ -26,23 +26,23 @@
 
 #include "boot/stivale2.h"
 #include "system/GDT.h"
-#include <ascii.h>
-#include <boot/boot.h>
-#include <devices/keyboard/keyboard.h>
-#include <devices/pci/PCI.h>
-#include <devices/pcspkr/pcspkr.h>
-#include <devices/serial/serial.h>
-#include <devices/video/vbe.h>
-#include <libgraphic/framebuffer.h>
-#include <libk/logging.h>
-#include <libk/module.h>
-#include <libk/random.h>
-#include <memory/pmm.h>
-#include <memory/vmm.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <system/interrupts/IDT.h>
-#include <system/interrupts/PIT.h>
+#include "ascii.h"
+#include "boot/boot.h"
+#include "devices/keyboard/keyboard.h"
+#include "devices/pci/PCI.h"
+#include "devices/pcspkr/pcspkr.h"
+#include "devices/serial/serial.h"
+#include "devices/video/vbe.h"
+#include "libgraphic/framebuffer.h"
+#include "libk/logging.h"
+#include "libk/module.h"
+#include "libk/random.h"
+#include "memory/pmm.h"
+#include "memory/vmm.h"
+#include "stddef.h"
+#include "stdint.h"
+#include "system/interrupts/IDT.h"
+#include "system/interrupts/PIT.h"
 
 Color white = {255, 255, 255}, green = {0, 148, 99}, gray = {94, 94, 94};
 
