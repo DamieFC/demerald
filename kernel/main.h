@@ -26,7 +26,7 @@
 
 #ifndef MAIN_H
 #define MAIN_H
-#include <boot/stivale2.h>
+#include "boot/stivale2.h"
 void kmain(struct stivale2_struct* info);
 
 #endif
