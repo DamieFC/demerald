@@ -1,7 +1,7 @@
 #include "panic.h"
-#include <devices/video/vbe.h>
-#include <libk/logging.h>
-#include <libk/random.h>
+#include "devices/video/vbe.h"
+#include "libk/logging.h"
+#include "libk/random.h"
 char *comments_lol[] =
     {
         "Something happened.",
@@ -20,7 +20,10 @@ char *comments_lol[] =
         ":(",
         "Kernel is not in the sudoers file. This incident will be reported.",
         "Error Code: INSERT_FUNNY_THING_HERE",
-        "ERROR 4@r7: Kernel farted"
+        "ERROR 4@r7: Kernel farted",
+        "WOOOHOOOO I CRASHED!",
+        "The kernel has died."
+        "Error 404v2: Kernel has been found, but it's crowd surfing at a Jello Biafra and GSM concert."
 
 };
 
