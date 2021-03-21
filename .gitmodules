@@ -6,3 +6,7 @@
 	path = thirdparty/echfs
 	url = https://github.com/echfs/echfs
 	branch = master
+[submodule "ext2"]
+	path = thirdparty/ext2
+	url = https://github.com/Rahulpatel2991/Ext2
+	branch = master
