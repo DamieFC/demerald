@@ -1,3 +1,5 @@
+NAME = "Demerald 0.0.3"
+
 KERNEL_HDD = build/disk.hdd
 JOBS := $(shell nproc)
 .PHONY: all clean
