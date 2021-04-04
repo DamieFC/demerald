@@ -3,7 +3,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2020-2021 Abb1x
+ * Copyright (c) 2021 Abb1x
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,112 +24,117 @@
  * SOFTWARE.
  */
 
-#include "boot/stivale2.h"
-#include "system/GDT.h"
-#include <ascii.h>
-#include <boot/boot.h>
-#include <devices/keyboard/keyboard.h>
-#include <devices/pci/PCI.h>
-#include <devices/pcspkr/pcspkr.h>
-#include <devices/serial/serial.h>
-#include <devices/video/vbe.h>
-#include <libk/graphics/framebuffer.h>
-#include <libk/logging.h>
-#include <libk/module.h>
-#include <libk/random.h>
-#include <libk/time/chrono.h>
-#include <libk/time/time.h>
-#include <memory/pmm.h>
-#include <memory/vmm.h>
+/* stivale2_mmap_entry */
+#include "pmm.h"
+#include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
-#include <system/interrupts/IDT.h>
-#include <system/interrupts/PIT.h>
 
-Color white = {255, 255, 255}, green = {0, 148, 99}, gray = {94, 94, 94};
+#define DIV_ROUNDUP(A, B) ({ \
+    __typeof__(A) _a_ = A;   \
+    __typeof__(B) _b_ = B;   \
+    (_a_ + (_b_ - 1)) / _b_; \
+})
 
-void kmain(struct stivale2_struct *info)
+Bitmap bitmap;
+
+void *memset(void *bufptr, int value, size_t size)
 {
+    unsigned char *buf = (unsigned char *)bufptr;
+    size_t i;
+    for (i = 0; i < size; i++)
+        buf[i] = (unsigned char)value;
 
-    module("main");
+    return bufptr;
+}
 
-    GDT_init();
-    IDT_init();
+void PMM_init(struct stivale2_mmap_entry *memory_map, size_t memory_entries, BootInfo bootinfo)
+{
+    module("PMM");
 
-    PIT_init(1000);
+    log(INFO, "Memory Address: %x", (uint64_t)memory_map);
 
-    Serial_init();
+    size_t bitmap_size = DIV_ROUNDUP(bootinfo.memory_highest_page, PAGE_SIZE) / 8;
 
-    static Color bg_color = {0, 64, 73};
-
-    VBE_init(info);
-    VBE_clear_screen(1, bg_color);
-
-    info = (void *)info + MEM_OFFSET;
-
-    PCI_init();
-
-    BootInfo boot_info = Boot_get_info(info);
-
-    DateTime date = RTC_get_date_time();
-
-    VBE_putf("Time Info:");
-    VBE_putf("\tDate: %x/%x/20%x", date.month, date.day, date.year);
-    VBE_putf("\tTime: %d:%d:%d\n", date.time.hour, date.time.minute, date.time.second);
-    
-    srand(RTC_get_seconds());
-
-    PMM_init((void *)boot_info.memory_map, boot_info.memory_map->entries, boot_info);
-
-
-    /* VMM_init();*/
-
-    PCSpkr_init();
-    Keyboard_init();
-
-    VBE_putf("System booted in %dms", PIT_get_ticks());
-    VBE_puts("\nWelcome to ", white);
-    VBE_puts("EmeraldOS!\n", green);
-
-
-    /* Framebuffer functions
-    Framebuffer fb = _Framebuffer(info);
-    fb.clear_screen(&fb);
-    fb.puts("hello", &fb);
-    */
-
-    /* Random circles: */
-
-    /*
-    
-    VBE_display_circle(rand() % 100 + 200, rand() % 100 + 200, rand() % 50 + 100);
-    VBE_display_circle(rand() % 100 + 200, rand() % 100 + 200, rand() % 50 + 100);
-    VBE_display_circle(rand() % 100 + 200, rand() % 100 + 200, rand() % 50 + 100);
-    VBE_display_circle(rand() % 100 + 200, rand() % 100 + 200, rand() % 50 + 100);
-    */
-
-    /*VBE_draw_shape(RECTANGLE, 20, 20, 100, 500);*/
-
-    /*VBE_draw_shape(TRIANGLE, 150, 300, 200, 300);
-    VBE_display_circle(300, 400, 50);
-    VBE_display_circle(300, 400, 25);*/
-
-    set_ascii();
-
-    Chrono chrono;
-    uint8_t beeps = 0;
-    while (beeps < 3)
+    size_t i;
+    for (i = 0; i < memory_entries; i++)
     {
+        log(INFO, "[Entry %d] [%x - %x]: size: %x, type: %d", i, memory_map[i].base, memory_map[i].base + memory_map[i].length, memory_map[i].length, memory_map[i].type);
 
-        Chrono_start(&chrono);
-
-        PCSpkr_beep(20);
-
-        log(DEBUG, "%dms have passed since the chronometer was started", Chrono_end(&chrono));
-        sleep(80);
-        beeps++;
+        if (memory_map[i].type != STIVALE2_MMAP_USABLE && memory_map[i].type != STIVALE2_MMAP_BOOTLOADER_RECLAIMABLE && memory_map[i].type != STIVALE2_MMAP_KERNEL_AND_MODULES)
+            continue;
     }
 
-    while (1)
-        ;
+    /* Finding a place for the bitmap */
+
+    size_t m;
+
+    for (m = 0; m < memory_entries; m++)
+    {
+        struct stivale2_mmap_entry entry = memory_map[m];
+
+        if (entry.type != STIVALE2_MMAP_USABLE)
+            continue;
+
+        if (entry.length >= bitmap_size)
+        {
+            uint8_t *bitmap__ = (uint8_t *)entry.base + MEM_OFFSET;
+
+            bitmap = _Bitmap(bitmap__, bitmap_size);
+
+            entry.base += bitmap_size;
+            entry.length -= bitmap_size;
+
+            break;
+        }
+    }
+
+    /* Populating free entries */
+    size_t j;
+
+    for (j = 0; j < memory_entries; j++)
+    {
+
+        if (memory_map[j].type != STIVALE2_MMAP_USABLE)
+            continue;
+
+	log(INFO,"%x",memory_map[j].length / PAGE_SIZE);
+	
+        bitmap.set_free(memory_map[j].base / PAGE_SIZE, memory_map[j].length / PAGE_SIZE, &bitmap);
+	
+	log(INFO,"%d",j);
+    }
+    
+    module("PMM");
+
+    log(INFO, "initialized!");
+}
+void *PMM_allocate(uint64_t count)
+{
+
+    uint64_t res = bitmap.allocate(count, &bitmap);
+
+    if (count > 1)
+    {
+        log(INFO, "Allocated %d pages", count);
+    }
+    else
+        log(INFO, "Allocated %d page", count);
+
+    return (void *)(res * PAGE_SIZE);
+}
+
+void *PMM_allocate_zero(uint64_t count)
+{
+    void *d = PMM_allocate(count);
+
+    uint64_t *pages = (uint64_t *)(MEM_OFFSET + (uint64_t)d);
+
+    uint64_t i;
+
+    for (i = 0; i < (count * PAGE_SIZE) / sizeof(uint64_t); i++)
+    {
+        pages[i] = 0;
+    }
+
+    return d;
 }
