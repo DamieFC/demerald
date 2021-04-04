@@ -26,23 +26,25 @@
 
 #include "boot/stivale2.h"
 #include "system/GDT.h"
-#include "ascii.h"
-#include "boot/boot.h"
-#include "devices/keyboard/keyboard.h"
-#include "devices/pci/PCI.h"
-#include "devices/pcspkr/pcspkr.h"
-#include "devices/serial/serial.h"
-#include "devices/video/vbe.h"
-#include "libgraphic/framebuffer.h"
-#include "libk/logging.h"
-#include "libk/module.h"
-#include "libk/random.h"
-#include "memory/pmm.h"
-#include "memory/vmm.h"
-#include "stddef.h"
-#include "stdint.h"
-#include "system/interrupts/IDT.h"
-#include "system/interrupts/PIT.h"
+#include <ascii.h>
+#include <boot/boot.h>
+#include <devices/keyboard/keyboard.h>
+#include <devices/pci/PCI.h>
+#include <devices/pcspkr/pcspkr.h>
+#include <devices/serial/serial.h>
+#include <devices/video/vbe.h>
+#include <libk/graphics/framebuffer.h>
+#include <libk/logging.h>
+#include <libk/module.h>
+#include <libk/random.h>
+#include <libk/time/chrono.h>
+#include <libk/time/time.h>
+#include <memory/pmm.h>
+#include <memory/vmm.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <system/interrupts/IDT.h>
+#include <system/interrupts/PIT.h>
 
 Color white = {255, 255, 255}, green = {0, 148, 99}, gray = {94, 94, 94};
 
@@ -66,19 +68,21 @@ void kmain(struct stivale2_struct *info)
     info = (void *)info + MEM_OFFSET;
 
     PCI_init();
-/*    BootInfo boot_info = Boot_get_info(info); */
+
+    BootInfo boot_info = Boot_get_info(info);
 
     DateTime date = RTC_get_date_time();
 
     VBE_putf("Time Info:");
     VBE_putf("\tDate: %x/%x/20%x", date.month, date.day, date.year);
     VBE_putf("\tTime: %d:%d:%d\n", date.time.hour, date.time.minute, date.time.second);
-
+    
     srand(RTC_get_seconds());
 
-   /* PMM_init((void*)boot_info.memory_map, boot_info.memory_map->entries);
+    PMM_init((void *)boot_info.memory_map, boot_info.memory_map->entries, boot_info);
 
-    VMM_init();*/
+
+    /* VMM_init();*/
 
     PCSpkr_init();
     Keyboard_init();
@@ -87,41 +91,44 @@ void kmain(struct stivale2_struct *info)
     VBE_puts("\nWelcome to ", white);
     VBE_puts("EmeraldOS!\n", green);
 
-    /* Framebuffer fb = _Framebuffer();
 
-    Framebuffer functions
-    fb.init(info, &fb);
+    /* Framebuffer functions
+    Framebuffer fb = _Framebuffer(info);
     fb.clear_screen(&fb);
-    fb.puts("hello", &fb);*/
-
-    uint8_t beeps = 0;
-    while (beeps < 3)
-    {
-        PCSpkr_beep(55);
-        PCSpkr_sleep(80);
-        beeps++;
-    }
+    fb.puts("hello", &fb);
+    */
 
     /* Random circles: */
 
     /*
+    
     VBE_display_circle(rand() % 100 + 200, rand() % 100 + 200, rand() % 50 + 100);
-
     VBE_display_circle(rand() % 100 + 200, rand() % 100 + 200, rand() % 50 + 100);
-
     VBE_display_circle(rand() % 100 + 200, rand() % 100 + 200, rand() % 50 + 100);
-
     VBE_display_circle(rand() % 100 + 200, rand() % 100 + 200, rand() % 50 + 100);
     */
 
     /*VBE_draw_shape(RECTANGLE, 20, 20, 100, 500);*/
 
     /*VBE_draw_shape(TRIANGLE, 150, 300, 200, 300);
-
     VBE_display_circle(300, 400, 50);
     VBE_display_circle(300, 400, 25);*/
 
     set_ascii();
+
+    Chrono chrono;
+    uint8_t beeps = 0;
+    while (beeps < 3)
+    {
+
+        Chrono_start(&chrono);
+
+        PCSpkr_beep(20);
+
+        log(DEBUG, "%dms have passed since the chronometer was started", Chrono_end(&chrono));
+        sleep(80);
+        beeps++;
+    }
 
     while (1)
         ;
